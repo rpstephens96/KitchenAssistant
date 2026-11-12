@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#FBF8F3">
+  <meta name="description" content="Fridge, freezer & cupboard tracker with recipes, meal plan, receipt scanning and a smart UK shopping list.">
+  <title>Larder</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon.svg">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">🥕</span>
+        <div><h1 id="page-title">What's in</h1><p id="page-sub" class="muted"></p></div>
+      </div>
+      <div class="topbar-actions">
+        <button type="button" class="icon-btn" id="undo-btn" data-action="undo" aria-label="Undo last change" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+        </button>
+        <button type="button" class="icon-btn" data-action="settings-open" aria-label="Settings and sharing">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <nav class="tabbar" aria-label="Main">
+      <button type="button" class="tab" data-action="tab" data-tab="inventory">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2.5" width="14" height="19" rx="2.5"/><path d="M5 10h14M8.5 6v2M8.5 13v3"/></svg><span>What's in</span>
+      </button>
+      <button type="button" class="tab" data-action="tab" data-tab="cook">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 13.9A4 4 0 0 1 7.5 6a5 5 0 0 1 9 0A4 4 0 0 1 18 13.9V20H6z"/><path d="M6 17h12"/></svg><span>Cook</span>
+      </button>
+      <button type="button" class="tab" data-action="tab" data-tab="plan">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg><span>Plan</span>
+      </button>
+      <button type="button" class="tab" data-action="tab" data-tab="shop">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2.5 3.5h3l2.4 11.2a1.5 1.5 0 0 0 1.5 1.2h8.3a1.5 1.5 0 0 0 1.5-1.1L21 7.5H6.4"/></svg><span>Shop</span><b class="tab-badge" id="shop-badge" hidden></b>
+      </button>
+    </nav>
+
+    <main id="view" class="view" tabindex="-1"></main>
+  </div>
+
+  <button type="button" class="fab" data-action="fab" aria-label="Open kitchen assistant">✨</button>
+
+  <div id="sheet-root" class="sheet-root" hidden>
+    <div class="sheet-backdrop" data-action="sheet-close"></div>
+    <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+      <div class="sheet-grip" aria-hidden="true"></div>
+      <button type="button" class="sheet-x" data-action="sheet-close" aria-label="Close">×</button>
+      <div id="sheet-body"></div>
+    </section>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <input type="file" id="import-file" accept="application/json,.json" hidden data-change="import-file">
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

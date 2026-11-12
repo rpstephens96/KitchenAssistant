@@ -1,0 +1,10 @@
+{
+  "name": "Larder — kitchen, meals & shopping",
+  "short_name": "Larder",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#FBF8F3",
+  "theme_color": "#FBF8F3",
+  "icons": [{ "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
