@@ -1,4 +1,4 @@
-// App bootstrap: 4-tab routing, event delegation, re-render on state change.
+// App bootstrap: 4-tab routing, event delegation, re-render on state change, automatic household sync.
 import { store, KEY, migrate } from './store.js';
 import { closeSheet, refreshSheet, toast, sheetOpen } from './ui/dom.js';
 import * as inventory from './ui/inventory.js';
@@ -8,11 +8,13 @@ import * as shop from './ui/shop.js';
 import * as settings from './ui/settings.js';
 import * as scan from './ui/scan.js';
 import * as assistant from './ui/assistant.js';
+import * as receiptkey from './ui/receiptkey.js';
+import { syncNow, syncReady } from './sync.js';
 import { weekStartOf } from './core/util.js';
 import { setCustomIngredients } from './core/normalizer.js';
 
 const views = { inventory, cook, plan, shop };
-const modules = [inventory, cook, plan, shop, settings, scan, assistant];
+const modules = [inventory, cook, plan, shop, settings, scan, assistant, receiptkey];
 const merge = (key) => Object.assign({}, ...modules.map((m) => m[key] || {}));
 const actions = { ...merge('actions'), undo: () => doUndo(), tab: (el) => go(el.dataset.tab), 'sheet-close': () => closeSheet() };
 const inputs = merge('inputs');
@@ -33,6 +35,7 @@ function render() {
   const badge = document.getElementById('shop-badge');
   badge.hidden = !left; badge.textContent = left;
   document.getElementById('undo-btn').hidden = !store.canUndo();
+  document.getElementById('sync-dot').hidden = !syncReady(store.state);
   viewEl.innerHTML = v.render(ctx);
   v.mount?.(viewEl, ctx);
 }
@@ -44,10 +47,22 @@ function go(tab) {
 
 function doUndo() { if (store.undo()) toast('Undone ↶'); }
 
-store.subscribe(({ label }) => {
+// ── Automatic household sync ──────────────────────────────────────
+let syncTimer = null;
+const autoOn = () => syncReady(store.state) && store.state.settings.gist.auto;
+function setSyncState(s) { const d = document.getElementById('sync-dot'); if (d) d.dataset.state = s; }
+async function autoSync() {
+  if (!autoOn() || !navigator.onLine) return;
+  setSyncState('busy');
+  try { await syncNow(store); setSyncState('ok'); } catch (e) { setSyncState('err'); console.warn('Sync failed', e); }
+}
+function scheduleSync(ms = 6000) { clearTimeout(syncTimer); if (autoOn()) syncTimer = setTimeout(autoSync, ms); }
+
+store.subscribe(({ label, source }) => {
   render();
   refreshSheet();
   if (label) toast(label, { undo: () => doUndo() });
+  if (source === 'local') scheduleSync();
 });
 
 document.addEventListener('click', (ev) => {
@@ -74,10 +89,13 @@ document.addEventListener('keydown', (ev) => {
   if (ev.key === 'Escape' && sheetOpen()) closeSheet();
   if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'z' && !/INPUT|TEXTAREA/.test(document.activeElement?.tagName)) { ev.preventDefault(); doUndo(); }
 });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') scheduleSync(300); });
+window.addEventListener('online', () => scheduleSync(300));
 window.addEventListener('storage', (e) => {
   if (e.key === KEY && e.newValue) { store.state = migrate(JSON.parse(e.newValue)); setCustomIngredients(store.state.customIngredients); render(); }
 });
 
 render();
+scheduleSync(800);
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('./sw.js').catch(() => {});

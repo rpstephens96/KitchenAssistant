@@ -101,7 +101,6 @@ export function render(ctx) {
     : `<div class="empty"><div class="big">${LOCATIONS.find((l) => l.id === loc).emoji}</div>Nothing here yet.<br>Scan a receipt, use the bar above or tap a staple.</div>`}`;
 }
 
-// ── Mutations ─────────────────────────────────────────────────────
 export function addToInventory(ctx, { text = null, ingredientId = null, qty = null }) {
   let ing;
   if (ingredientId) ing = getIngredient(ingredientId);
@@ -123,7 +122,6 @@ function patchItem(ctx, id, fn) {
   ctx.store.update((s) => { const it = s.inventory.find((i) => i.id === id); if (it) { fn(it); it.updatedAt = nowISO(); } });
 }
 
-// ── Edit sheet ────────────────────────────────────────────────────
 function editSheet(ctx, id) {
   return () => {
     const it = ctx.store.state.inventory.find((i) => i.id === id);
@@ -153,7 +151,6 @@ function editSheet(ctx, id) {
   };
 }
 
-// ── Actions ───────────────────────────────────────────────────────
 export const actions = {
   'scan-open': (el, ev, ctx) => openScan(ctx),
   'inv-loc': (el, ev, ctx) => { ctx.ui.invLoc = el.dataset.loc; ctx.render(); },
@@ -211,7 +208,6 @@ export const submits = {
   },
 };
 
-/** Swipe-left-to-remove (pointer events; vertical scrolling still works). */
 export function mount(root, ctx) {
   root.querySelectorAll('[data-swipe]').forEach((card) => {
     let x0 = null; let y0 = null; let dx = 0; let locked = false;

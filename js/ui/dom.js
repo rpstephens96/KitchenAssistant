@@ -18,14 +18,14 @@ export function openSheet(render, { focus = true, tall = false } = {}) {
   if (focus) requestAnimationFrame(() => sheetBody().querySelector('[autofocus], input, button')?.focus({ preventScroll: true }));
 }
 
-export function refreshSheet({ toBottom = false } = {}) {
+export function refreshSheet({ toBottom = false, toTop = false } = {}) {
   if (!sheetRender || sheetRoot().hidden) return;
   const active = document.activeElement;
   const keepId = active && sheetBody().contains(active) ? active.id : null;
   const scroller = sheetEl();
   const scroll = scroller.scrollTop;
   sheetBody().innerHTML = sheetRender();
-  scroller.scrollTop = toBottom ? scroller.scrollHeight : scroll;
+  scroller.scrollTop = toBottom ? scroller.scrollHeight : toTop ? 0 : scroll;
   if (keepId) document.getElementById(keepId)?.focus({ preventScroll: true });
 }
 

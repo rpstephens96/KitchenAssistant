@@ -25,7 +25,7 @@ test('shopping: butter across 3 recipes aggregates, minus 100 g in fridge', () =
   assert.equal(none[0].display, '195 g');
   assert.deepEqual(none[0].sources, ['A', 'B', 'C']);
   const some = buildShoppingItems({ week: weekWith('a', 'b', 'c'), recipes, inventory: [item('butter', 100)] });
-  assert.equal(some[0].display, '94 g'); // 193.5 g needed − 100 g held
+  assert.equal(some[0].display, '94 g');
   assert.equal(some[0].packHint, '1 250g block');
 });
 
@@ -98,13 +98,21 @@ test('importer: og:title fallback and pasted text', () => {
   assert.deepEqual(raw.method, ['Whisk everything.', 'Fry in butter.']);
 });
 
-test('merge: newest record wins, deletions propagate via tombstones', () => {
-  const base = { inventory: [], recipes: [], customIngredients: [], plans: {}, shopping: { items: [] }, settings: {}, tombstones: {} };
-  const a = { ...base, updatedAt: '2026-11-12T10:00:00Z', inventory: [{ id: 'm', qty: 1, updatedAt: '2026-11-12T10:00:00Z' }, { id: 'e', updatedAt: '2026-11-11T00:00:00Z' }] };
-  const b = { ...base, updatedAt: '2026-11-12T11:00:00Z', inventory: [{ id: 'm', qty: 2, updatedAt: '2026-11-12T11:00:00Z' }], tombstones: { e: '2026-11-12T09:00:00Z' } };
+test('merge: newest record wins, deletions propagate, recipes & receipt key shared, settings stay local', () => {
+  const base = { inventory: [], recipes: [], customIngredients: [], receiptKey: [], plans: {}, shopping: { items: [] }, tombstones: {} };
+  const a = { ...base, settings: { ai: { key: 'mine' } }, updatedAt: '2026-11-12T10:00:00Z',
+    inventory: [{ id: 'm', qty: 1, updatedAt: '2026-11-12T10:00:00Z' }, { id: 'e', updatedAt: '2026-11-11T00:00:00Z' }],
+    recipes: [{ id: 'r1', title: 'Rob’s curry', updatedAt: '2026-11-12T08:00:00Z' }] };
+  const b = { ...base, settings: { ai: { key: 'theirs' } }, updatedAt: '2026-11-12T11:00:00Z',
+    inventory: [{ id: 'm', qty: 2, updatedAt: '2026-11-12T11:00:00Z' }], tombstones: { e: '2026-11-12T09:00:00Z' },
+    recipes: [{ id: 'r2', title: 'Her lasagne', updatedAt: '2026-11-12T09:00:00Z' }],
+    receiptKey: [{ id: 'rk_watermelon', key: 'watermelon', ingredientId: 'watermelon', updatedAt: '2026-11-12T09:00:00Z' }] };
   const merged = mergeState(a, b);
   assert.equal(merged.inventory.length, 1);
   assert.equal(merged.inventory[0].qty, 2);
+  assert.deepEqual(merged.recipes.map((r) => r.title).sort(), ['Her lasagne', 'Rob’s curry']);
+  assert.equal(merged.receiptKey[0].ingredientId, 'watermelon');
+  assert.equal(merged.settings.ai.key, 'mine');
 });
 
 test('seed data is valid and exercises every badge', () => {

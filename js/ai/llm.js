@@ -37,7 +37,6 @@ export function isConfigured(ai) {
   return !!(c && c.baseUrl && c.model && (c.key || ai.provider === 'custom'));
 }
 
-// ── OpenAI-compatible ─────────────────────────────────────────────
 function toOpenAI(messages, system) {
   const out = system ? [{ role: 'system', content: system }] : [];
   for (const m of messages) {
@@ -57,12 +56,10 @@ function fromOpenAI(json) {
   const msg = json.choices?.[0]?.message;
   if (!msg) throw new Error(json.error?.message || 'Empty reply from the AI');
   const toolCalls = (msg.tool_calls || []).map((t) => ({ id: t.id, name: t.function.name, args: safeJSON(t.function.arguments) }));
-  // Replay only the fields the API accepts back (keeps Gemini's thought signatures in tool_calls).
   const replay = { role: 'assistant', content: msg.content ?? '', ...(msg.tool_calls?.length ? { tool_calls: msg.tool_calls } : {}) };
   return { text: textOf(msg.content), toolCalls, raw: { provider: 'openai', message: replay } };
 }
 
-// ── Anthropic ─────────────────────────────────────────────────────
 function toAnthropic(messages) {
   const out = [];
   for (const m of messages) {
@@ -87,15 +84,13 @@ function fromAnthropic(json) {
   return {
     text: json.content.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim(),
     toolCalls: json.content.filter((b) => b.type === 'tool_use').map((b) => ({ id: b.id, name: b.name, args: b.input || {} })),
-    raw: { provider: 'anthropic', content: json.content }, // includes thinking blocks, required when continuing tool use
+    raw: { provider: 'anthropic', content: json.content },
   };
 }
 
-// ── Shared ────────────────────────────────────────────────────────
 function textOf(c) { return typeof c === 'string' ? c.trim() : Array.isArray(c) ? c.map((p) => p.text || '').join('').trim() : ''; }
 function safeJSON(s) { try { return typeof s === 'string' ? JSON.parse(s || '{}') : (s || {}); } catch { return {}; } }
 
-/** Pulls the first JSON object out of a reply (tolerates ```json fences and chatter). */
 export function extractJSON(text) {
   const t = String(text || '').replace(/```(?:json)?/gi, '');
   const start = t.indexOf('{'); const end = t.lastIndexOf('}');
@@ -111,10 +106,6 @@ function friendlyError(status, body) {
   return `The AI returned an error (${status})${msg ? `: ${msg}` : ''}`;
 }
 
-/**
- * One model call.
- * @returns {{ text: string, toolCalls: {id,name,args}[], raw: object }}
- */
 export async function chat({ ai, system = '', messages, tools = [], maxTokens = 4000, fetchImpl = globalThis.fetch, signal }) {
   const c = resolveConfig(ai);
   if (!c) throw new Error('Set up the AI assistant in ⚙️ Settings first');

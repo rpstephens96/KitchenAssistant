@@ -1,16 +1,46 @@
-// Settings: AI assistant, backup, two-phone sync, meal slots, reset.
+// Settings: household sharing (auto-sync), AI assistant, receipt key, backup, meal slots, reset.
 import { esc, openSheet, closeSheet, sheetHeader, refreshSheet } from './dom.js';
-import { syncNow } from '../sync.js';
+import { syncNow, syncReady } from '../sync.js';
 import { PROVIDERS, chat as llmChat, isConfigured } from '../ai/llm.js';
+import { openReceiptKey } from './receiptkey.js';
 
 let syncMsg = { text: '', ok: true, busy: false };
 let aiMsg = { text: '', ok: true, busy: false };
 let pendingImport = null;
 
+function ago(iso) {
+  if (!iso) return 'never';
+  const s = Math.round((Date.now() - new Date(iso)) / 1000);
+  if (s < 60) return 'just now';
+  if (s < 3600) return `${Math.round(s / 60)} min ago`;
+  return new Date(iso).toLocaleString('en-GB', { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
+function shareSection(st) {
+  const g = st.gist || {};
+  const on = syncReady({ settings: st });
+  return `<div class="section-title" style="margin-top:0">👥 Share with your household</div>
+    <div class="card share-card ${on ? 'on' : ''}">
+      ${on ? `<p class="share-status">✅ <b>Sharing is on.</b> Your kitchen, recipes, meal plan, shopping list and receipt key stay in step on both phones${g.auto ? ' automatically' : ''}. Last synced ${ago(st.lastSync)}.</p>`
+        : `<p class="small" style="margin-top:0">Right now everything — including <b>recipes</b> — is saved only on this phone. Link both phones to one private GitHub Gist and they stay in step automatically.</p>
+           <ol class="small steps">
+             <li>On github.com: profile picture → <b>Settings → Developer settings → Personal access tokens → Tokens (classic) → Generate new token</b>. Tick only <b>gist</b>, set no expiry (or a long one), generate, copy.</li>
+             <li><b>Phone 1:</b> paste the token below, tap <b>Sync now</b>. A Gist ID appears.</li>
+             <li><b>Phone 2:</b> paste the same token <i>and</i> that Gist ID, tap <b>Sync now</b>.</li>
+           </ol>`}
+      ${syncMsg.text ? `<div class="notice ${syncMsg.ok ? 'ok' : ''}">${esc(syncMsg.text)}</div>` : ''}
+      <label class="field"><span>GitHub token</span><input class="input" type="password" id="gist-token" autocomplete="off" value="${esc(g.token || '')}" data-change="gist-token" placeholder="ghp_…"></label>
+      <label class="field"><span>Gist ID ${g.id ? '<small class="muted">— enter this on the other phone</small>' : ''}</span>
+        <input class="input" id="gist-id" autocomplete="off" value="${esc(g.id || '')}" data-change="gist-id" placeholder="Leave blank on the first phone"></label>
+      <label class="tick-list"><input type="checkbox" data-change="gist-auto" ${g.auto ? 'checked' : ''}> Sync automatically (when the app opens and a few seconds after each change)</label>
+      <button type="button" class="btn primary block" data-action="gist-sync" ${syncMsg.busy || !g.token ? 'disabled' : ''}>${syncMsg.busy ? '<span class="spinner"></span> Syncing…' : '🔄 Sync now'}</button>
+    </div>`;
+}
+
 function aiSection(st) {
   const ai = st.ai;
   const p = PROVIDERS[ai.provider];
-  return `<div class="section-title" id="ai-section" style="margin-top:0">✨ AI assistant (optional)</div>
+  return `<div class="section-title" id="ai-section">✨ AI assistant (optional)</div>
     <p class="muted small" style="margin-top:0">Powers the chat and reading photos of your shopping. Uses your own key — it stays on this phone and is never included in backups or sync. Set it up on each phone.</p>
     <div class="provider-grid">${Object.entries(PROVIDERS).map(([id, x]) => `<button type="button" data-action="ai-provider" data-p="${id}" aria-pressed="${ai.provider === id}"><b>${x.label}</b><small>${x.note}</small></button>`).join('')}</div>
     ${p ? `
@@ -31,21 +61,18 @@ function aiSection(st) {
 function settingsSheet(ctx) {
   return () => {
     const st = ctx.store.state.settings;
-    const g = st.gist || {};
+    const known = ctx.store.state.receiptKey.length;
     return `${sheetHeader('⚙️', 'Settings & sharing')}
+      ${shareSection(st)}
+      <div class="section-title">🧾 Receipt scanning</div>
+      <button type="button" class="pick-row" data-action="rk-open"><span class="em">🧠</span><span class="txt"><span class="nm">Receipt key</span>
+        <span class="sub">${known} learned wording${known === 1 ? '' : 's'} · view, add or forget</span></span><span class="chev">›</span></button>
       ${aiSection(st)}
       <div class="section-title">Backup</div>
       <div class="sheet-actions" style="margin-top:0">
         <button type="button" class="btn" data-action="backup-export">⬇️ Save backup file</button>
         <button type="button" class="btn" data-action="backup-import">⬆️ Load backup file</button>
       </div>
-      <div class="section-title">Share between two phones (optional)</div>
-      <p class="muted small" style="margin-top:0">Both phones use the same private GitHub Gist. Create a token with only the <b>gist</b> permission at github.com → Settings → Developer settings. Paste it on each phone; on the second phone also paste the Gist ID shown here after the first sync.</p>
-      ${syncMsg.text ? `<div class="notice ${syncMsg.ok ? 'ok' : ''}">${esc(syncMsg.text)}</div>` : ''}
-      <label class="field"><span>GitHub token</span><input class="input" type="password" id="gist-token" autocomplete="off" value="${esc(g.token || '')}" data-change="gist-token" placeholder="ghp_… or github_pat_…"></label>
-      <label class="field"><span>Gist ID</span><input class="input" id="gist-id" autocomplete="off" value="${esc(g.id || '')}" data-change="gist-id" placeholder="Leave blank on the first phone"></label>
-      <button type="button" class="btn primary block" data-action="gist-sync" ${syncMsg.busy ? 'disabled' : ''}>${syncMsg.busy ? '<span class="spinner"></span> Syncing…' : '🔄 Sync now'}</button>
-      ${st.lastSync ? `<p class="muted small">Last synced ${new Date(st.lastSync).toLocaleString('en-GB')}</p>` : ''}
       <div class="section-title">Meal plan</div>
       <div class="big-choice" style="grid-template-columns:1fr 1fr">
         <button type="button" data-action="toggle-setting" data-key="showBreakfast" aria-pressed="${!!st.showBreakfast}">🥣 Breakfast slots</button>
@@ -98,7 +125,7 @@ export const actions = {
   },
   'gist-sync': async (el, ev, ctx) => {
     syncMsg = { text: '', ok: true, busy: true }; refreshSheet();
-    try { syncMsg = { text: `Synced ✓ Gist ID: ${await syncNow(ctx.store)}`, ok: true, busy: false }; } catch (e) { syncMsg = { text: e.message, ok: false, busy: false }; }
+    try { const id = await syncNow(ctx.store); syncMsg = { text: `Synced ✓  Gist ID: ${id}`, ok: true, busy: false }; } catch (e) { syncMsg = { text: e.message, ok: false, busy: false }; }
     refreshSheet();
   },
   'toggle-setting': (el, ev, ctx) => ctx.store.update((s) => { s.settings[el.dataset.key] = !s.settings[el.dataset.key]; }),
@@ -111,13 +138,15 @@ export const actions = {
       s.inventory = []; s.recipes = []; s.plans = {}; s.shopping.items = [];
     }, { label: 'Cleared everything' });
   },
+  'rk-open': (el, ev, ctx) => openReceiptKey(ctx),
 };
 
 export const changes = {
-  'ai-field': (el, ev, ctx) => { aiMsg = { text: '', ok: true, busy: false }; ctx.store.update((s) => { s.settings.ai[el.dataset.k] = el.value.trim(); }); },
-  'ai-receipts': (el, ev, ctx) => ctx.store.update((s) => { s.settings.ai.useForReceipts = el.checked; }),
-  'gist-token': (el, ev, ctx) => ctx.store.update((s) => { s.settings.gist.token = el.value.trim(); }),
-  'gist-id': (el, ev, ctx) => ctx.store.update((s) => { s.settings.gist.id = el.value.trim(); }),
+  'ai-field': (el, ev, ctx) => { aiMsg = { text: '', ok: true, busy: false }; ctx.store.update((s) => { s.settings.ai[el.dataset.k] = el.value.trim(); }, { source: 'settings' }); },
+  'ai-receipts': (el, ev, ctx) => ctx.store.update((s) => { s.settings.ai.useForReceipts = el.checked; }, { source: 'settings' }),
+  'gist-token': (el, ev, ctx) => ctx.store.update((s) => { s.settings.gist.token = el.value.trim(); }, { source: 'settings' }),
+  'gist-id': (el, ev, ctx) => ctx.store.update((s) => { s.settings.gist.id = el.value.trim(); }, { source: 'settings' }),
+  'gist-auto': (el, ev, ctx) => ctx.store.update((s) => { s.settings.gist.auto = el.checked; }, { source: 'settings' }),
   'import-file': async (el, ev, ctx) => {
     const file = el.files?.[0]; el.value = '';
     if (!file) return;

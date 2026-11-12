@@ -40,7 +40,7 @@ function inv(ingredientId, location, { qty = null, level = null, useSoon = false
 }
 
 export function defaultSettings() {
-  return { showBreakfast: false, showLunch: false, gist: { token: '', id: '' }, lastSync: null,
+  return { showBreakfast: false, showLunch: false, gist: { token: '', id: '', auto: true }, lastSync: null,
     ai: { provider: '', key: '', model: '', baseUrl: '', useForReceipts: true } };
 }
 
@@ -74,6 +74,7 @@ export function buildSeedState() {
     plans: { [week]: { weekStart: week, updatedAt: nowISO(), days } },
     shopping: { items: [], generatedAt: null, weekStart: null, updatedAt: nowISO() },
     customIngredients: [],
+    receiptKey: [],
     tombstones: {},
     settings: defaultSettings(),
   };

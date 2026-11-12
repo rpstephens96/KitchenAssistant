@@ -176,11 +176,15 @@ export function setCustomIngredients(custom = []) {
 export function getIngredient(id) { return catalog.get(id) || null; }
 export function allIngredients() { return [...catalog.values()]; }
 
-/** Canonical ingredient mentioned in free text (or null). */
-export function findIngredient(text) {
+/** Canonical ingredient mentioned in free text (or null). `skip(ing)` can veto a match. */
+export function findIngredient(text, skip = null) {
   const t = normText(text);
   if (!t) return null;
-  for (const e of aliasIndex) if (e.re.test(t)) return catalog.get(e.id);
+  for (const e of aliasIndex) {
+    if (!e.re.test(t)) continue;
+    const ing = catalog.get(e.id);
+    if (!skip || !skip(ing)) return ing;
+  }
   return null;
 }
 

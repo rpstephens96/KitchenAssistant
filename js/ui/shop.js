@@ -55,9 +55,7 @@ export const actions = {
   'shop-done': (el, ev, ctx) => openScan(ctx),
   'shop-putaway': (el, ev, ctx) => {
     const lines = linesFromShoppingList(ctx.store.state.shopping.items.filter((i) => i.checked));
-    let r;
-    ctx.store.update((s) => { r = putAway(s, lines, { tombstone: (id) => ctx.store.tombstone(id) }); }, { label: '📥 Put away — your kitchen is updated' });
-    return r;
+    ctx.store.update((s) => { putAway(s, lines, { tombstone: (id) => ctx.store.tombstone(id) }); }, { label: '📥 Put away — your kitchen is updated' });
   },
   'plan-shop': (el, ev, ctx) => generateList(ctx),
 };
@@ -66,9 +64,7 @@ export const submits = {
   'shop-add': (form, ev, ctx) => {
     const text = form.q.value.trim();
     if (!text) return;
-    let row;
-    ctx.store.update((s) => { row = addToShopping(s, text); }, { label: 'Added to list' });
+    ctx.store.update((s) => { addToShopping(s, text); }, { label: 'Added to list' });
     requestAnimationFrame(() => document.getElementById('shop-q')?.focus());
-    return row;
   },
 };

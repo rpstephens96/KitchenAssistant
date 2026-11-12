@@ -34,7 +34,7 @@ export const TOOLS = [
     parameters: { type: 'object', properties: { day: { type: 'string', enum: DAYS }, meal: { type: 'string', enum: MEALS }, week: WEEK_PARAM }, required: ['day'] } },
   { name: 'get_recipe', description: 'Get the full ingredients and method of a saved recipe.',
     parameters: { type: 'object', properties: { recipe: { type: 'string' } }, required: ['recipe'] } },
-  { name: 'save_recipe', description: 'Save a new recipe to the recipe book. Ingredients one per line with UK amounts, e.g. "400g chopped tomatoes".',
+  { name: 'save_recipe', description: 'Save a new recipe to the shared recipe book. Ingredients one per line with UK amounts, e.g. "400g chopped tomatoes".',
     parameters: { type: 'object', properties: { title: { type: 'string' }, servings: { type: 'integer' }, total_minutes: { type: 'integer' },
       ingredients: { type: 'array', items: { type: 'string' } }, method: { type: 'array', items: { type: 'string' } } }, required: ['title', 'ingredients', 'method'] } },
 ];
@@ -58,7 +58,6 @@ export function findRecipe(state, title) {
       .filter(([s]) => s >= 0.5).sort((x, y) => y[0] - x[0])[0]?.[1] || null;
 }
 
-/** Compact snapshot of the kitchen for the system prompt. */
 export function buildSystemPrompt(state, now = new Date()) {
   const today = isoDate(now);
   const inv = Object.entries(LOCATION_LABEL).map(([loc, label]) => {
@@ -77,7 +76,7 @@ export function buildSystemPrompt(state, now = new Date()) {
   const shop = state.shopping.items.filter((i) => !i.checked).map((i) => `${i.name}${i.display ? ` ${i.display}` : ''}`).join('; ') || '(empty)';
   const expiring = state.inventory.filter((i) => isExpiring(i, today)).map((i) => i.name);
 
-  return `You are Larder, a warm, practical kitchen and shopping assistant inside a family meal-planning app in the UK.
+  return `You are Larder, a warm, practical kitchen and shopping assistant inside a family meal-planning app in the UK. The household shares one kitchen, recipe book, plan and list across two phones.
 Today is ${now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}.
 
 HOW TO BEHAVE
@@ -103,7 +102,6 @@ ${plan(addDays(weekStartOf(now), 7), 'Next week')}
 SHOPPING LIST: ${shop}`;
 }
 
-/** Runs one tool against the store. Returns { ok, summary, data } — summary is shown as a chip in chat. */
 export function executeTool(name, args = {}, { store }) {
   const s = store.state;
   const tomb = (id) => store.tombstone(id);
@@ -219,10 +217,6 @@ export function executeTool(name, args = {}, { store }) {
   }
 }
 
-/**
- * One assistant turn: may call several tools before the final reply.
- * @returns {{ reply: string, actions: string[], messages: object[] }} messages = new messages to append to history
- */
 export async function runAgent({ history, userMessage, store, ai, llm = chat, maxSteps = 6, signal, now }) {
   const messages = [...history, userMessage];
   const added = [userMessage];
@@ -243,7 +237,6 @@ export async function runAgent({ history, userMessage, store, ai, llm = chat, ma
   return { reply: actions.length ? 'All done — see the changes below.' : "Sorry, I couldn't finish that. Try asking a simpler way.", actions, messages: added };
 }
 
-/** Keeps the conversation small: last N messages, images replaced by a note, never starting on a tool result. */
 export function trimHistory(messages, max = 24) {
   let out = messages.slice(-max);
   while (out.length && out[0].role !== 'user') out = out.slice(1);

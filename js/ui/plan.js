@@ -147,7 +147,6 @@ export const inputs = {
   'pick-search': (el, ev, ctx) => { ctx.ui.pickQuery = el.value; document.getElementById('pick-list').innerHTML = pickerList(ctx, el.dataset.day, el.dataset.meal); },
 };
 
-/** Desktop drag-and-drop between slots (swaps if the target is filled). */
 export function mount(root, ctx) {
   let from = null;
   root.querySelectorAll('[data-drag]').forEach((el) => {

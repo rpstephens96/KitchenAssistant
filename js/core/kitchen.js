@@ -2,6 +2,7 @@
 // All functions mutate a draft `state` (call inside store.update()).
 import { getIngredient, normalizeLine, findIngredient, normText, formatQty } from './normalizer.js';
 import { makeShoppingItem, boughtQty } from './shopping.js';
+import { teachReceipt } from './receipt.js';
 import { uid, nowISO } from './util.js';
 
 export const LOCATION_LABEL = { fridge: 'Fridge', freezer: 'Freezer', pantry: 'Cupboard' };
@@ -66,7 +67,6 @@ export function addToShopping(state, text, sources = []) {
   return item;
 }
 
-/** Removes shopping lines for the given ingredient ids. Returns how many were removed. */
 export function tickOffShopping(state, ingredientIds, tombstone) {
   const ids = new Set(ingredientIds);
   const gone = state.shopping.items.filter((i) => ids.has(i.ingredientId));
@@ -75,17 +75,25 @@ export function tickOffShopping(state, ingredientIds, tombstone) {
   return gone.length;
 }
 
-/** Puts reviewed receipt lines away. Household lines only tick off the list. */
+/**
+ * Puts reviewed receipt lines away. Household lines only tick off the list.
+ * Lines where the user moved the storage place teach the receipt key that location for next time.
+ */
 export function putAway(state, lines, { tickList = true, tombstone = () => {} } = {}) {
-  let stored = 0;
+  let stored = 0; let learned = 0;
   for (const l of lines) {
     const ing = getIngredient(l.ingredientId) || l.custom;
-    if (!ing || l.kind === 'household' || ing.aisle === 'Household') continue;
+    if (!ing) continue;
+    if (l.locTouched && l.keyText && l.kind !== 'household') {
+      teachReceipt(state, { keyText: l.keyText, ingredientId: ing.id, custom: ing.custom ? ing : null, location: l.location, example: l.raw });
+      learned++;
+    }
+    if (l.kind === 'household' || ing.aisle === 'Household') continue;
     addStock(state, { ing, qty: l.qty, location: l.location });
     stored++;
   }
   const ticked = tickList ? tickOffShopping(state, lines.map((l) => l.ingredientId), tombstone) : 0;
-  return { stored, ticked };
+  return { stored, ticked, learned };
 }
 
 /** Shopping list -> review lines ("I bought everything on my list"). */
@@ -93,9 +101,8 @@ export function linesFromShoppingList(items) {
   return items.map((s) => {
     const ing = getIngredient(s.ingredientId) || { id: s.ingredientId, name: s.name, emoji: s.emoji, base: s.baseUnit, store: 'pantry', aisle: s.aisle };
     const qty = boughtQty(ing, s.buyQty);
-    const household = ing.aisle === 'Household';
     return { id: uid('l_'), raw: s.display ? `${s.name} · ${s.display}` : s.name, name: ing.name, emoji: ing.emoji || '🛒',
       ingredientId: ing.id, qty, baseUnit: ing.base, display: qty != null ? formatQty(qty, ing.base) : '', approx: false,
-      location: ing.store || 'pantry', kind: household ? 'household' : 'food', include: true };
+      location: ing.store || 'pantry', kind: ing.aisle === 'Household' ? 'household' : 'food', include: true, keyText: '' };
   });
 }

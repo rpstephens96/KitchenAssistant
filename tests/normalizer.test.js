@@ -59,6 +59,7 @@ test('US -> UK canonical names', () => {
     '1 lb ground beef': 'Beef Mince', '200g shrimp': 'Prawns', '2 tbsp tomato paste': 'Tomato Purée',
     '1 cup half and half': 'Single Cream', '1 tsp crushed red pepper flakes': 'Chilli Flakes',
     '1/2 tsp freshly ground black pepper': 'Black Pepper', '1 (14 oz) can garbanzo beans': 'Chickpeas',
+    '1 cup water': 'Water', '2 cups watermelon chunks': 'Watermelon',
   };
   for (const [line, name] of Object.entries(cases)) assert.equal(n(line).name, name, line);
 });
@@ -70,6 +71,7 @@ test('longest alias wins: no false matches on substrings', () => {
   assert.equal(findIngredient('peanut butter').id, 'peanut-butter');
   assert.equal(findIngredient('red onion').id, 'red-onion');
   assert.equal(findIngredient('garlic powder').id, 'garlic-powder');
+  assert.equal(findIngredient('watermelon').id, 'watermelon');
   assert.equal(findIngredient('buttermilk'), null);
 });
 

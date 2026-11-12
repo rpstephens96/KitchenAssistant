@@ -1,5 +1,6 @@
 // Two-device merge: per-record last-write-wins + tombstones for deletions.
-const COLLECTIONS = ['inventory', 'recipes', 'customIngredients'];
+// receiptKey (learned receipt wording) is shared too, so one person's corrections help the other.
+export const COLLECTIONS = ['inventory', 'recipes', 'customIngredients', 'receiptKey'];
 
 function newer(a, b) { return (a?.updatedAt || '') >= (b?.updatedAt || '') ? a : b; }
 
@@ -19,7 +20,7 @@ export function mergeState(local, remote) {
   for (const [wk, plan] of Object.entries(local.plans || {})) out.plans[wk] = out.plans[wk] ? newer(plan, out.plans[wk]) : plan;
   const ls = local.shopping || { items: [] }; const rs = remote.shopping || { items: [] };
   out.shopping = { ...newer(ls, rs), items: mergeList(ls.items, rs.items, tombstones) };
-  out.settings = { ...(remote.settings || {}), ...(local.settings || {}) }; // device settings (incl. AI key) stay local
+  out.settings = local.settings; // device settings (AI key, token) stay local
   out.updatedAt = [local.updatedAt, remote.updatedAt].sort().pop();
   return out;
 }

@@ -11,12 +11,19 @@ export function migrate(s) {
   s.schemaVersion ??= 1;
   s.tombstones ??= {};
   s.customIngredients ??= [];
+  s.receiptKey ??= [];
   s.shopping ??= { items: [] };
   const d = defaultSettings();
   s.settings = { ...d, ...(s.settings || {}) };
   s.settings.gist = { ...d.gist, ...(s.settings.gist || {}) };
   s.settings.ai = { ...d.ai, ...(s.settings.ai || {}) };
   return s;
+}
+
+/** Custom ingredients plus any defined only inside receipt-key entries. */
+function registerAll(s) {
+  const extra = (s.receiptKey || []).map((e) => e.custom).filter(Boolean);
+  setCustomIngredients([...s.customIngredients, ...extra.filter((c) => !s.customIngredients.some((x) => x.id === c.id))]);
 }
 
 function load() {
@@ -34,16 +41,16 @@ export const store = {
   subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
   save() { try { localStorage.setItem(KEY, JSON.stringify(this.state)); } catch (e) { console.error('Save failed', e); } },
 
-  /** Mutate with an undo snapshot. `fn` mutates the draft in place. */
-  update(fn, { label = null } = {}) {
+  /** Mutate with an undo snapshot. `source: 'sync'` marks changes that came from the other phone. */
+  update(fn, { label = null, source = 'local' } = {}) {
     undoStack.push(JSON.stringify(this.state));
     if (undoStack.length > UNDO_LIMIT) undoStack.shift();
     fn(this.state);
-    this.state.updatedAt = nowISO();
+    if (source !== 'sync') this.state.updatedAt = nowISO();
     this.rev++;
-    setCustomIngredients(this.state.customIngredients);
+    registerAll(this.state);
     this.save();
-    listeners.forEach((l) => l({ label }));
+    listeners.forEach((l) => l({ label, source }));
   },
 
   canUndo() { return undoStack.length > 0; },
@@ -54,15 +61,15 @@ export const store = {
     if (!prev) return false;
     this.state = JSON.parse(prev);
     this.rev++;
-    setCustomIngredients(this.state.customIngredients);
+    registerAll(this.state);
     this.save();
-    listeners.forEach((l) => l({ label: null }));
+    listeners.forEach((l) => l({ label: null, source: 'local' }));
     return true;
   },
 
   tombstone(id) { this.state.tombstones[id] = nowISO(); },
   replaceAll(next) { this.update((s) => { Object.keys(s).forEach((k) => delete s[k]); Object.assign(s, migrate(next)); }); },
-  mergeIn(remote) { this.update((s) => Object.assign(s, mergeState(s, migrate(remote)))); },
+  mergeIn(remote, opts = {}) { this.update((s) => Object.assign(s, mergeState(s, migrate(remote))), opts); },
 
   /** Secrets (GitHub token, AI key) never leave the device in a file or Gist. */
   exportJSON() {
@@ -84,4 +91,4 @@ export const store = {
   resetToDemo() { const keep = this.state.settings; this.replaceAll({ ...buildSeedState(), settings: keep }); },
 };
 
-setCustomIngredients(store.state.customIngredients);
+registerAll(store.state);

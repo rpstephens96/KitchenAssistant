@@ -5,6 +5,7 @@ import { normalizeLine, detectSystem, getIngredient } from '../core/normalizer.j
 import { fetchHtml, extractRecipeFromHtml, parseRecipeText, buildRecipe } from '../core/importer.js';
 import { makeShoppingItem } from '../core/shopping.js';
 import { registerCustom } from '../core/kitchen.js';
+import { syncReady } from '../sync.js';
 import { DAYS, DAY_NAMES, nowISO, addDays, parseISODate } from '../core/util.js';
 import { getWeek, emptyWeek } from '../core/planner.js';
 
@@ -17,7 +18,7 @@ const BADGE_TEXT = { ready: '✅ Ready to cook', expiring: '⏰ Uses expiring', 
 export const title = () => 'What can I cook?';
 export function subtitle(ctx) {
   const ready = rankRecipes(ctx.store.state.recipes, ctx.store.state.inventory).filter((r) => r.match.status === 'ready').length;
-  return `${ready} ready now · ${ctx.store.state.recipes.length} recipes`;
+  return `${ready} ready now · ${ctx.store.state.recipes.length} recipes${syncReady(ctx.store.state) ? ' · 🔄 shared' : ''}`;
 }
 
 function hero(r) {
@@ -35,6 +36,7 @@ export function render(ctx) {
   return `
   <div class="toolbar"><button type="button" class="btn primary" data-action="recipe-add">＋ Add recipe</button>
     <button type="button" class="btn ghost" data-action="ask" data-q="What can I cook tonight with what I've got?">✨ Ask for ideas</button></div>
+  ${!syncReady(state) ? `<button type="button" class="share-hint" data-action="settings-open">👥 Recipes are only on this phone. <b>Turn on sharing</b> so you both see them.</button>` : ''}
   <div class="chips" role="group" aria-label="Filter recipes">
     ${FILTERS.map((x) => `<button type="button" class="chip" data-action="cook-filter" data-f="${x.id}" aria-pressed="${f === x.id}">${x.label} <span class="n">${count(x.id)}</span></button>`).join('')}
   </div>
@@ -96,7 +98,6 @@ function planSheet(ctx, id) {
   };
 }
 
-// ── Add / import / edit ───────────────────────────────────────────
 const draft = { mode: 'link', url: '', paste: '', busy: false, error: '', raw: null, editingId: null };
 
 function previewLines(text) {

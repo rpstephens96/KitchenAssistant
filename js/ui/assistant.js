@@ -6,11 +6,11 @@ import { loadImage, toCanvas, canvasToImagePart } from '../ai/vision.js';
 import { openSettings } from './settings.js';
 
 const SUGGESTIONS = [
-  "What can I make tonight?",
+  'What can I make tonight?',
   "Plan this week's dinners around what needs using up",
-  "Make my shopping list",
+  'Make my shopping list',
   "We've run out of milk and eggs",
-  "Something quick and veggie for 2?",
+  'Something quick and veggie for 2?',
 ];
 
 const chat = { history: [], view: [], busy: false, draft: '', image: null, controller: null };
@@ -25,7 +25,6 @@ export function openAssistant(ctx, question = '') {
   else requestAnimationFrame(() => document.getElementById('chat-input')?.focus({ preventScroll: true }));
 }
 
-/** Tiny safe formatter: escape, then **bold** and line breaks. */
 function fmt(text) {
   return esc(text).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/^[-•]\s+/gm, '• ');
 }
@@ -74,7 +73,6 @@ async function send(text) {
   chat.view.push({ role: 'user', text: text || '📷', image: image?.url });
   Object.assign(chat, { draft: '', image: null, busy: true, controller: new AbortController() });
   refreshSheet({ toBottom: true });
-
   const revBefore = store.rev;
   try {
     const res = await runAgent({ history: trimHistory(chat.history), userMessage: { role: 'user', content }, store, ai: store.state.settings.ai, signal: chat.controller.signal });

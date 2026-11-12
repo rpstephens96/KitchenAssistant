@@ -4,6 +4,7 @@ import { chat, extractJSON } from './llm.js';
 const PROMPT = `You read photos for a UK kitchen-stock app. The photo is a supermarket receipt, an online grocery order confirmation, or groceries laid out on a counter.
 List every product that was bought. Ignore totals, discounts, savings, carrier bags, payment and store details.
 Expand supermarket abbreviations into plain UK product names without brands (e.g. "BRIT CHKN BRST FLLT 640G" -> name "chicken breast fillets", size "640g").
+Be careful with similar words: watermelon is fruit, not water.
 For a photo of groceries, estimate pack sizes from the packaging if visible.
 Reply with ONLY JSON, no other text:
 {"store": "Tesco" or null, "items": [{"name": "semi skimmed milk", "quantity": 1, "size": "2.272L", "frozen": false, "household": false}]}
@@ -16,7 +17,6 @@ export async function readImageWithAI(image, ai, { signal } = {}) {
   return { store: json.store || null, items: Array.isArray(json.items) ? json.items : [] };
 }
 
-// ── On-device OCR (no key needed; library + English model download once from jsDelivr) ──
 const TESSERACT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
 let loading = null;
 
@@ -39,20 +39,18 @@ export async function ocrImage(canvas, onProgress = () => {}) {
     logger: (m) => { if (m.status === 'recognizing text') onProgress(m.progress, 'Reading the receipt…'); },
   });
   try {
-    await worker.setParameters({ tessedit_pageseg_mode: '4', preserve_interword_spaces: '1' }); // 4 = single column of variable-size text
+    await worker.setParameters({ tessedit_pageseg_mode: '4', preserve_interword_spaces: '1' });
     const { data } = await worker.recognize(canvas);
     return data.text || '';
   } finally { await worker.terminate(); }
 }
 
-// ── Image helpers ──
 export async function loadImage(file) {
   const url = URL.createObjectURL(file);
   try { const img = new Image(); img.src = url; await img.decode(); return img; }
   finally { setTimeout(() => URL.revokeObjectURL(url), 5000); }
 }
 
-/** Downscale (and optionally boost contrast for OCR). */
 export function toCanvas(img, maxSide, { ocr = false } = {}) {
   const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
   const c = document.createElement('canvas');
